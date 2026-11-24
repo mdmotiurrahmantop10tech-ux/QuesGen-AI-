@@ -6,13 +6,12 @@ QuesGen is a Flutter app for creating question papers. The current workflow lets
 ## Tech stack
 - Flutter stable on Linux ARM64 (`~/flutter`, Flutter 3.50.1 / Dart 3.14.0)
 - `material_ui` for Material 3 UI
-- `image_picker` for camera/gallery image selection
-- `google_mlkit_text_recognition` for offline OCR fallback
-- `http` for cloud OCR provider calls
+- `image_picker` for camera/gallery image selection and `image_cropper` for crop-before-scan
+- `google_generative_ai` with `gemini-3.8-flash` for direct Bengali question extraction
+- `http` as the Gemini SDK transport dependency
 - `pdf` and `printing` for PDF generation and print/share preview
 - Noto Sans Bengali fonts embedded under `assets/fonts/` for Bengali PDF text
-- Cloud OCR provider: Gemini (`GEMINI_API_KEY`, optional `GEMINI_MODEL`); an OpenAI provider class exists but is not in the default chain
-- OCR fallback order: Gemini → ML Kit (offline)
+- API key supplied with `--dart-define=GEMINI_API_KEY`; no offline OCR fallback chain
 
 ## Current progress
 - Flutter project scaffolded with `lib/`, `test/`, and Android platform files.
@@ -23,10 +22,10 @@ QuesGen is a Flutter app for creating question papers. The current workflow lets
 - Paper Details screen collects exam metadata inside the editor.
 - Question Editor supports per-question marks and move up/down reordering before PDF export.
 - PDF export implemented with `pdf`/`printing` and embedded Noto Sans Bengali fonts; layout includes centered exam header, Bengali question numbering, right-side marks, MCQ options (ক/খ/গ/ঘ), and page-number footer.
-- OCR pipeline implemented: image pick → Gemini cloud OCR → ML Kit offline fallback → regex question extraction → Question Editor.
-- Question extractor handles ASCII numbering, Bengali digits, and Bengali letter markers.
-- Android manifest includes camera and media permissions.
-- Fallback OCR strategy implemented behind `OcrService` with provider abstraction.
+- Scan pipeline implemented: image pick → crop → `generateQuestionsFromImage(image: File(...))` → Gemini `DataPart('image/jpeg', bytes)` → newline-separated Bengali MCQ/short questions → Question Editor; bytes/base64 variants are also available.
+- Gemini service splits non-empty response lines into questions and throws Bengali messages for API/key errors.
+- Android manifest includes camera and media permissions plus the UCrop activity.
+- Saved Papers screen remains unchanged.
 - `flutter pub get`, `flutter analyze`, and `flutter test` were run successfully during development.
 
 ## Next steps
@@ -34,5 +33,5 @@ QuesGen is a Flutter app for creating question papers. The current workflow lets
 - Add MCQ option editing in Question Editor; PDF already formats options when present.
 - Add richer question editing: options, correct answers, sections, marks, and reordering.
 - Add provider configuration UI or secure key storage instead of relying only on `--dart-define`.
-- Add OCR result confidence handling and better extraction heuristics for Bengali/English mixed papers.
-- Add platform builds/tests for Android and verify ML Kit behavior on a real device.
+- Add optional prompt/config tuning for mixed Bengali and English papers.
+- Verify Gemini key, cropping, and Bengali output on a real Android device.

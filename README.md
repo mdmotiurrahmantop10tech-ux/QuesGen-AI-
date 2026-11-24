@@ -5,9 +5,9 @@ QuesGen is a Flutter app for creating exam question papers. It supports scanning
 ## Features
 
 - Bottom navigation with **New Paper** and **Saved Papers**.
-- **Scan from Image** using camera or gallery.
-- OCR pipeline: Gemini cloud OCR first, ML Kit offline fallback.
-- Regex question extraction for ASCII, Bengali digits, and Bengali letter markers.
+- **Scan from Image** using camera or gallery with a crop step.
+- Gemini API reads Bengali question papers directly and returns only the questions.
+- No OCR library or regex extraction; Bengali error messages are shown when the API is unavailable.
 - Question editor with editable text, per-question marks, and move up/down ordering.
 - Paper details: school name, exam name, class, subject, and total marks.
 - PDF export using `pdf` + `printing` with embedded Noto Sans Bengali fonts.
@@ -19,7 +19,7 @@ lib/
   core/theme/          App theme
   models/              Paper and Question models
   features/capture/    New Paper and Saved Papers screens
-  features/ocr/        OCR providers, fallback service, question extractor
+  services/            Gemini API question extraction
   features/editor/     Question editor screen
   features/pdf_export/ Paper details screen and PDF export service
 .github/workflows/     GitHub Actions APK build
@@ -38,17 +38,19 @@ Create a new **empty** repository on GitHub. Do not initialize it with a README,
 
 The app reads the Gemini key from `--dart-define=GEMINI_API_KEY`. In CI this value comes from a GitHub Actions secret.
 
-1. Open Google AI Studio and create an API key.
-2. In your GitHub repository, go to **Settings → Secrets and variables → Actions → New repository secret**.
-3. Name it exactly:
+1. Open https://aistudio.google.com/app/apikey and sign in with a Google account.
+2. Click **Get API key**, then choose **Create API key in new project** (or select an existing project).
+3. Copy the generated key. Google AI Studio provides a free tier for testing.
+4. In your GitHub repository, go to **Settings → Secrets and variables → Actions → New repository secret**.
+5. Name it exactly:
 
 ```text
 GEMINI_API_KEY
 ```
 
-4. Paste the API key as the value.
+6. Paste the API key as the value.
 
-If the secret is missing or empty, the app skips Gemini and uses the offline ML Kit OCR fallback.
+If the secret is missing or empty, scanning shows a Bengali error message instead of questions.
 
 ### 3. Push the code from a mobile terminal
 
@@ -111,7 +113,13 @@ flutter analyze
 flutter test
 ```
 
-To build locally with the Gemini key:
+To run the app locally with your own free API key:
+
+```bash
+flutter run --dart-define=GEMINI_API_KEY=YOUR_KEY_HERE
+```
+
+To build locally with the same key:
 
 ```bash
 flutter build apk --release --dart-define=GEMINI_API_KEY=YOUR_KEY_HERE
@@ -125,6 +133,7 @@ build/app/outputs/flutter-apk/app-release.apk
 
 ## Notes
 
-- The default Gemini model is configured in `lib/features/ocr/gemini_ocr_provider.dart`.
-- The offline OCR fallback uses `google_mlkit_text_recognition`.
+- The Gemini model (`gemini-3.8-flash`) and Bengali prompt live in `lib/services/gemini_service.dart`.
+- Images are sent as `DataPart('image/jpeg', bytes)` through `google_generative_ai`.
+- `generateQuestionsFromImage({required File image, String? extraPrompt})` is the main API; `generateQuestionsFromBytes` and `generateQuestionsFromBase64` accept raw bytes or base64. The Bengali prompt asks for MCQ options (ক/খ/গ/ঘ) or short questions without extra explanation.
 - Bengali PDF rendering uses the embedded Noto Sans Bengali fonts in `assets/fonts/`.

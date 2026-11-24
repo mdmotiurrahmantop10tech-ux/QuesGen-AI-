@@ -1,16 +1,14 @@
+import 'dart:io';
+
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../models/paper.dart';
+import '../../models/question.dart';
+import '../../services/gemini_service.dart';
 import '../editor/question_editor_screen.dart';
-import '../ocr/ai_provider.dart';
-import '../ocr/fallback_ocr_service.dart';
-import '../ocr/ocr_service.dart';
-import '../ocr/question_extractor.dart';
 
-const String _readFailureMessage =
-    'লেখাটি পড়া যায়নি। দয়া করে পরিষ্কার ছবি তুলুন অথবা ম্যানুয়ালি লিখুন।';
 const String _documentFailureMessage =
     'দয়া করে একটি পরিষ্কার বই বা প্রশ্নপত্রের ছবি তুলুন।';
 
@@ -24,7 +22,7 @@ class NewPaperScreen extends StatefulWidget {
 class _NewPaperScreenState extends State<NewPaperScreen> {
   bool _isScanning = false;
   final ImagePicker _imagePicker = ImagePicker();
-  final OcrService _ocrService = FallbackOcrService();
+  final GeminiService _geminiService = GeminiService();
 
   bool _looksLikeScreenshot(XFile image) {
     final name = image.name.toLowerCase();
@@ -33,12 +31,12 @@ class _NewPaperScreenState extends State<NewPaperScreen> {
         name.contains('scrot');
   }
 
-  void _showReadFailure() {
+  void _showMessage(String message) {
     if (!mounted) {
       return;
     }
     ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text(_readFailureMessage)));
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showDocumentDialog() {
@@ -111,18 +109,10 @@ class _NewPaperScreenState extends State<NewPaperScreen> {
         return;
       }
 
-      final text = await _ocrService.extractText(cropped.path);
-      if (isUnreadableOcrText(text)) {
-        _showReadFailure();
-        return;
-      }
-      final questions = extractQuestions(text);
+      final questions = await _geminiService.generateQuestionsFromImage(
+        image: File(cropped.path),
+      );
       if (!mounted) {
-        return;
-      }
-
-      if (questions.isEmpty) {
-        _showReadFailure();
         return;
       }
 
@@ -131,7 +121,13 @@ class _NewPaperScreenState extends State<NewPaperScreen> {
         id: 'scan_${now.millisecondsSinceEpoch}',
         title: 'Scanned paper',
         createdAt: now,
-        questions: questions,
+        questions: [
+          for (var index = 0; index < questions.length; index++)
+            Question(
+              id: 'q_${now.millisecondsSinceEpoch}_$index',
+              text: questions[index],
+            ),
+        ],
       );
 
       await Navigator.of(context).push(
@@ -139,10 +135,10 @@ class _NewPaperScreenState extends State<NewPaperScreen> {
           builder: (_) => QuestionEditorScreen(paper: paper),
         ),
       );
-    } on NoDocumentTextException {
-      _showDocumentDialog();
+    } on GeminiServiceException catch (error) {
+      _showMessage(error.message);
     } catch (_) {
-      _showReadFailure();
+      _showMessage('অজানা এরর হয়েছে। পরে আবার চেষ্টা করুন।');
     } finally {
       if (mounted) {
         setState(() {
