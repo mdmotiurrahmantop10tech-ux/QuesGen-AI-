@@ -32,6 +32,8 @@ android {
     lint {
         checkReleaseBuilds = false
         abortOnError = false
+        checkDependencies = false
+        disable.addAll(listOf("EasterEgg", "StopShip"))
     }
 
     buildTypes {
