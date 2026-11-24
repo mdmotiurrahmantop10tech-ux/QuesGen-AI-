@@ -9,8 +9,21 @@ import '../../models/paper.dart';
 import '../../models/question.dart';
 
 final RegExp _questionMarkerPattern = RegExp(
-  r'^\s*(?:(?:\d{1,2}|[০-৯]{1,2})\s*[).:]|[ক-হ]\s*[.:])',
+  r'^\s*(?:(?:\d{1,2}|[০-৯]{1,2}|[ক-হ])\s*[).:])\s*',
 );
+
+const List<String> _bengaliOptionLabels = [
+  'ক',
+  'খ',
+  'গ',
+  'ঘ',
+  'ঙ',
+  'চ',
+  'ছ',
+  'জ',
+  'ঝ',
+  'ট',
+];
 
 abstract class PdfExportService {
   Future<void> exportPaper(Paper paper);
@@ -45,7 +58,13 @@ class PdfExportServiceImpl implements PdfExportService {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
         header: (context) => _buildHeader(paper, boldFont),
-        build: (context) => _buildQuestions(paper),
+        footer: (context) => pw.Center(
+          child: pw.Text(
+            'Page ${context.pageNumber} of ${context.pagesCount}',
+            style: pw.TextStyle(fontSize: 10),
+          ),
+        ),
+        build: (context) => _buildQuestions(paper, boldFont),
       ),
     );
 
@@ -57,57 +76,113 @@ class PdfExportServiceImpl implements PdfExportService {
         .where((value) => value.isNotEmpty)
         .join(' • ');
 
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          paper.schoolName.isEmpty ? 'QuesGen' : paper.schoolName,
-          style: pw.TextStyle(font: boldFont, fontSize: 20),
-        ),
-        pw.SizedBox(height: 4),
-        pw.Text(
-          paper.examName.isEmpty ? 'Question Paper' : paper.examName,
-          style: pw.TextStyle(font: boldFont, fontSize: 16),
-        ),
-        if (classSubject.isNotEmpty) ...[
-          pw.SizedBox(height: 4),
-          pw.Text(classSubject, style: pw.TextStyle(fontSize: 12)),
-        ],
-        if (paper.totalMarks > 0) ...[
+    return pw.Center(
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        children: [
+          pw.Text(
+            paper.schoolName.isEmpty ? 'QuesGen' : paper.schoolName,
+            style: pw.TextStyle(font: boldFont, fontSize: 18),
+          ),
           pw.SizedBox(height: 4),
           pw.Text(
-            'Total Marks: ${_formatMarks(paper.totalMarks)}',
-            style: pw.TextStyle(fontSize: 12),
+            paper.examName.isEmpty ? 'Question Paper' : paper.examName,
+            style: pw.TextStyle(font: boldFont, fontSize: 14),
           ),
+          if (classSubject.isNotEmpty) ...[
+            pw.SizedBox(height: 4),
+            pw.Text(classSubject, style: pw.TextStyle(fontSize: 12)),
+          ],
+          pw.SizedBox(height: 4),
+          pw.Text(
+            'Total Marks: ${_toBengaliDigits(_formatMarks(paper.totalMarks))}',
+            style: pw.TextStyle(font: boldFont, fontSize: 12),
+          ),
+          pw.SizedBox(height: 10),
+          pw.Divider(),
         ],
-        pw.SizedBox(height: 8),
-        pw.Divider(),
-      ],
+      ),
     );
   }
 
-  List<pw.Widget> _buildQuestions(Paper paper) {
+  List<pw.Widget> _buildQuestions(Paper paper, pw.Font boldFont) {
     final questions = paper.questions
         .where((question) => question.text.trim().isNotEmpty)
         .toList();
+    final widgets = <pw.Widget>[];
 
-    return [
-      for (var i = 0; i < questions.length; i++) ...[
-        pw.Text(
-          _formatQuestion(questions[i], i),
-          style: pw.TextStyle(fontSize: 12),
+    for (var i = 0; i < questions.length; i++) {
+      final question = questions[i];
+      final questionText = _formatQuestionText(question, i);
+      if (questionText.isEmpty) {
+        continue;
+      }
+
+      widgets.add(
+        pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Expanded(
+                  child: pw.Text(
+                    questionText,
+                    style: pw.TextStyle(fontSize: 12),
+                  ),
+                ),
+                pw.SizedBox(width: 8),
+                pw.Text(
+                  '[${_toBengaliDigits(_formatMarks(question.marks))}]',
+                  style: pw.TextStyle(font: boldFont, fontSize: 12),
+                ),
+              ],
+            ),
+            if (question.options.isNotEmpty) ...[
+              pw.SizedBox(height: 4),
+              for (var j = 0; j < question.options.length; j++)
+                pw.Padding(
+                  padding: pw.EdgeInsets.only(left: 24, top: 2),
+                  child: pw.Text(
+                    '${_bengaliOptionLabel(j)}) ${question.options[j].trim()}',
+                    style: pw.TextStyle(fontSize: 11),
+                  ),
+                ),
+            ],
+            pw.SizedBox(height: 10),
+          ],
         ),
-        pw.SizedBox(height: 8),
-      ],
-    ];
+      );
+    }
+
+    return widgets;
   }
 
-  String _formatQuestion(Question question, int index) {
-    final text = question.text.trim();
-    if (_questionMarkerPattern.hasMatch(text)) {
-      return text;
+  String _formatQuestionText(Question question, int index) {
+    final stripped = question.text.replaceFirst(_questionMarkerPattern, '').trim();
+    if (stripped.isEmpty) {
+      return '';
     }
-    return '${index + 1}. $text';
+    return '${_toBengaliDigits('${index + 1}')} . $stripped';
+  }
+
+  String _bengaliOptionLabel(int index) {
+    if (index >= 0 && index < _bengaliOptionLabels.length) {
+      return _bengaliOptionLabels[index];
+    }
+    return _toBengaliDigits('${index + 1}');
+  }
+
+  String _toBengaliDigits(String value) {
+    const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    final buffer = StringBuffer();
+    for (final char in value.split('')) {
+      final code = char.codeUnitAt(0);
+      buffer.write(
+        code >= 48 && code <= 57 ? bengaliDigits[code - 48] : char,
+      );
+    }
+    return buffer.toString();
   }
 
   String _formatMarks(double value) {

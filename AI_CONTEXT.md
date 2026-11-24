@@ -21,7 +21,8 @@ QuesGen is a Flutter app for creating question papers. The current workflow lets
 - Question Editor screen supports viewing, adding, deleting, and editing question text.
 - `Paper` model includes school name, exam name, class, subject, and total marks.
 - Paper Details screen collects exam metadata inside the editor.
-- PDF export implemented with `pdf`/`printing` and embedded Noto Sans Bengali fonts; Generate PDF opens the print/share preview.
+- Question Editor supports per-question marks and move up/down reordering before PDF export.
+- PDF export implemented with `pdf`/`printing` and embedded Noto Sans Bengali fonts; layout includes centered exam header, Bengali question numbering, right-side marks, MCQ options (ক/খ/গ/ঘ), and page-number footer.
 - OCR pipeline implemented: image pick → Gemini cloud OCR → ML Kit offline fallback → regex question extraction → Question Editor.
 - Question extractor handles ASCII numbering, Bengali digits, and Bengali letter markers.
 - Android manifest includes camera and media permissions.
@@ -30,7 +31,7 @@ QuesGen is a Flutter app for creating question papers. The current workflow lets
 
 ## Next steps
 - Add persistent storage for saved papers and wire Saved Papers to real data.
-- Improve PDF layout: question options, marks per question, page numbers, and Bengali/English mixed typography.
+- Add MCQ option editing in Question Editor; PDF already formats options when present.
 - Add richer question editing: options, correct answers, sections, marks, and reordering.
 - Add provider configuration UI or secure key storage instead of relying only on `--dart-define`.
 - Add OCR result confidence handling and better extraction heuristics for Bengali/English mixed papers.

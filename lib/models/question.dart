@@ -4,10 +4,12 @@ class Question {
     required this.text,
     this.options = const <String>[],
     this.correctOptionIndex,
+    this.marks = 1,
   });
 
   final String id;
   final String text;
   final List<String> options;
   final int? correctOptionIndex;
+  final double marks;
 }
