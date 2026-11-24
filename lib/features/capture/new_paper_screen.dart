@@ -1,3 +1,4 @@
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -63,6 +64,7 @@ class _NewPaperScreenState extends State<NewPaperScreen> {
       return;
     }
 
+    final colorScheme = Theme.of(context).colorScheme;
     setState(() {
       _isScanning = true;
     });
@@ -82,7 +84,34 @@ class _NewPaperScreenState extends State<NewPaperScreen> {
         return;
       }
 
-      final text = await _ocrService.extractText(image.path);
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: image.path,
+        maxWidth: 4096,
+        maxHeight: 4096,
+        compressFormat: ImageCompressFormat.jpg,
+        compressQuality: 100,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop document',
+            toolbarColor: colorScheme.primary,
+            toolbarWidgetColor: colorScheme.onPrimary,
+            activeControlsWidgetColor: colorScheme.primary,
+            initAspectRatio: CropAspectRatioPreset.original,
+            lockAspectRatio: false,
+            hideBottomControls: true,
+          ),
+          IOSUiSettings(
+            title: 'Crop document',
+            aspectRatioPickerButtonHidden: true,
+            aspectRatioLockEnabled: false,
+          ),
+        ],
+      );
+      if (cropped == null) {
+        return;
+      }
+
+      final text = await _ocrService.extractText(cropped.path);
       if (isUnreadableOcrText(text)) {
         _showReadFailure();
         return;
