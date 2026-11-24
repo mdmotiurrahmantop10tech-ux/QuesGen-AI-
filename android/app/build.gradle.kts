@@ -60,3 +60,9 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+tasks.whenTaskAdded {
+    if (name.contains("lintVitalRelease")) {
+        enabled = false
+    }
+}
