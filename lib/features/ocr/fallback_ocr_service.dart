@@ -19,12 +19,19 @@ class FallbackOcrService implements OcrService {
         continue;
       }
       try {
-        return await provider.extractText(imagePath);
+        final text = await provider.extractText(imagePath);
+        if (!isUnreadableOcrText(text)) {
+          return text;
+        }
       } catch (_) {
         continue;
       }
     }
 
-    return _offlineService.extractText(imagePath);
+    final offlineText = await _offlineService.extractText(imagePath);
+    if (isUnreadableOcrText(offlineText)) {
+      throw const OcrUnavailableException();
+    }
+    return offlineText;
   }
 }

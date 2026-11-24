@@ -5,6 +5,14 @@ import 'package:http/http.dart' as http;
 
 import 'ai_provider.dart';
 
+const String bengaliOcrSystemPrompt =
+    '''You are an expert Bengali OCR system. Analyze the provided image and extract the exact Bengali text (or English if the text is in English). 
+- DO NOT translate.
+- DO NOT guess or hallucinate words.
+- Preserve the original spelling, punctuation, and line breaks.
+- If the image is blurry or you cannot read a word, output '[অস্পষ্ট]' instead of making up a word.
+- Focus ONLY on the questions. Ignore page numbers, headers, or watermarks.''';
+
 class GeminiOcrProvider implements AiOcrProvider {
   GeminiOcrProvider({String? apiKey, String? model, http.Client? client})
     : apiKey = apiKey ?? const String.fromEnvironment('GEMINI_API_KEY'),
@@ -33,13 +41,14 @@ class GeminiOcrProvider implements AiOcrProvider {
 
     final bytes = await File(imagePath).readAsBytes();
     final body = jsonEncode({
+      'system_instruction': {
+        'parts': [
+          {'text': bengaliOcrSystemPrompt},
+        ],
+      },
       'contents': [
         {
           'parts': [
-            {
-              'text':
-                  'Extract all text from this image exactly. Preserve line breaks, numbering, and punctuation.',
-            },
             {
               'inline_data': {
                 'mime_type': _mimeTypeFor(imagePath),

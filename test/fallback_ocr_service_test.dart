@@ -70,4 +70,40 @@ void main() {
     expect(await service.extractText('image.jpg'), 'offline');
     expect(offline.calls, 1);
   });
+
+  test('skips garbage cloud text and keeps usable offline text', () async {
+    final provider = _FakeProvider('A', result: 'anofaT');
+    final offline = _FakeOfflineService('1. প্রথম প্রশ্ন');
+
+    final service = FallbackOcrService(
+      cloudProviders: [provider],
+      offlineService: offline,
+    );
+
+    expect(await service.extractText('image.jpg'), '1. প্রথম প্রশ্ন');
+  });
+
+  test('throws when both cloud and offline text are garbage', () async {
+    final provider = _FakeProvider('A', result: 'anofaT');
+    final offline = _FakeOfflineService('UHGIRT');
+
+    final service = FallbackOcrService(
+      cloudProviders: [provider],
+      offlineService: offline,
+    );
+
+    expect(
+      service.extractText('image.jpg'),
+      throwsA(isA<OcrUnavailableException>()),
+    );
+  });
+
+  test('detects garbage and accepts real Bengali or English text', () {
+    expect(isUnreadableOcrText('anofaT'), isTrue);
+    expect(isUnreadableOcrText('UHGIRT'), isTrue);
+    expect(isUnreadableOcrText('sdjkfhsdk'), isTrue);
+    expect(isUnreadableOcrText('   '), isTrue);
+    expect(isUnreadableOcrText('১. প্রথম প্রশ্ন'), isFalse);
+    expect(isUnreadableOcrText('1. What is your name?'), isFalse);
+  });
 }

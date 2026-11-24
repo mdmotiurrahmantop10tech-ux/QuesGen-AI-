@@ -7,6 +7,9 @@ import '../ocr/fallback_ocr_service.dart';
 import '../ocr/ocr_service.dart';
 import '../ocr/question_extractor.dart';
 
+const String _readFailureMessage =
+    'লেখাটি পড়া যায়নি। দয়া করে পরিষ্কার ছবি তুলুন অথবা ম্যানুয়ালি লিখুন।';
+
 class NewPaperScreen extends StatefulWidget {
   const NewPaperScreen({super.key});
 
@@ -46,6 +49,15 @@ class _NewPaperScreenState extends State<NewPaperScreen> {
     );
   }
 
+  void _showReadFailure() {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text(_readFailureMessage)),
+    );
+  }
+
   Future<void> _scanFromImage() async {
     if (_isScanning) {
       return;
@@ -63,23 +75,26 @@ class _NewPaperScreenState extends State<NewPaperScreen> {
     try {
       final image = await _imagePicker.pickImage(
         source: source,
-        maxWidth: 2048,
-        imageQuality: 90,
+        maxWidth: 4096,
+        maxHeight: 4096,
+        imageQuality: 100,
       );
       if (image == null) {
         return;
       }
 
       final text = await _ocrService.extractText(image.path);
+      if (isUnreadableOcrText(text)) {
+        _showReadFailure();
+        return;
+      }
       final questions = extractQuestions(text);
       if (!mounted) {
         return;
       }
 
       if (questions.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No questions found in the image.')),
-        );
+        _showReadFailure();
         return;
       }
 
@@ -96,13 +111,8 @@ class _NewPaperScreenState extends State<NewPaperScreen> {
           builder: (_) => QuestionEditorScreen(paper: paper),
         ),
       );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not scan image: $error')),
-      );
+    } catch (_) {
+      _showReadFailure();
     } finally {
       if (mounted) {
         setState(() {
