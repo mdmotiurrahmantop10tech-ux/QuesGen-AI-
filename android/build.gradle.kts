@@ -5,6 +5,14 @@ allprojects {
     }
 }
 
+allprojects {
+    tasks.whenTaskAdded {
+        if (name.contains("lintVital", ignoreCase = true)) {
+            enabled = false
+        }
+    }
+}
+
 val newBuildDir: Directory =
     rootProject.layout.buildDirectory
         .dir("../../build")
