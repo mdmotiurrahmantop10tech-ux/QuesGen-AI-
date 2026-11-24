@@ -18,3 +18,10 @@ class AiProviderException implements Exception {
   @override
   String toString() => '$provider: $message';
 }
+
+class NoDocumentTextException implements Exception {
+  const NoDocumentTextException();
+
+  @override
+  String toString() => 'No document text found in image';
+}

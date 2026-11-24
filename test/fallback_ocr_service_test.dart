@@ -1,14 +1,21 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quesgen/features/ocr/ai_provider.dart';
 import 'package:quesgen/features/ocr/fallback_ocr_service.dart';
+import 'package:quesgen/features/ocr/gemini_ocr_provider.dart';
 import 'package:quesgen/features/ocr/ocr_service.dart';
 
 class _FakeProvider implements AiOcrProvider {
-  _FakeProvider(this.providerName, {this.result, this.shouldThrow = false});
+  _FakeProvider(
+    this.providerName, {
+    this.result,
+    this.shouldThrow = false,
+    this.exception,
+  });
 
   final String providerName;
   final String? result;
   final bool shouldThrow;
+  final Object? exception;
   final List<String> calls = [];
 
   @override
@@ -20,6 +27,9 @@ class _FakeProvider implements AiOcrProvider {
   @override
   Future<String> extractText(String imagePath) async {
     calls.add(providerName);
+    if (exception != null) {
+      throw exception!;
+    }
     if (shouldThrow) {
       throw AiProviderException(providerName, 'failed');
     }
@@ -95,6 +105,42 @@ void main() {
     expect(
       service.extractText('image.jpg'),
       throwsA(isA<OcrUnavailableException>()),
+    );
+  });
+
+  test('propagates no-document result without offline fallback', () async {
+    final provider = _FakeProvider(
+      'A',
+      exception: const NoDocumentTextException(),
+    );
+    final offline = _FakeOfflineService('1. প্রথম প্রশ্ন');
+
+    final service = FallbackOcrService(
+      cloudProviders: [provider],
+      offlineService: offline,
+    );
+
+    expect(
+      service.extractText('image.jpg'),
+      throwsA(isA<NoDocumentTextException>()),
+    );
+    expect(provider.calls, ['A']);
+    expect(offline.calls, 0);
+  });
+
+  test('uses strict document-only Gemini prompt', () {
+    expect(
+      documentOcrSystemPrompt,
+      contains('You are a strict document OCR scanner.'),
+    );
+    expect(
+      documentOcrSystemPrompt,
+      contains('IGNORE completely any mobile UI elements'),
+    );
+    expect(documentOcrSystemPrompt, contains('PIXELLAB'));
+    expect(
+      noDocumentTextResponse,
+      'No document text found. Please upload a clear image of a book or paper.',
     );
   });
 

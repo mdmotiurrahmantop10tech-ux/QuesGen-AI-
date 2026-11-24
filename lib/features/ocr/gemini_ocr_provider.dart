@@ -5,18 +5,21 @@ import 'package:http/http.dart' as http;
 
 import 'ai_provider.dart';
 
-const String bengaliOcrSystemPrompt =
-    '''You are an expert Bengali OCR system. Analyze the provided image and extract the exact Bengali text (or English if the text is in English). 
-- DO NOT translate.
-- DO NOT guess or hallucinate words.
-- Preserve the original spelling, punctuation, and line breaks.
-- If the image is blurry or you cannot read a word, output '[অস্পষ্ট]' instead of making up a word.
-- Focus ONLY on the questions. Ignore page numbers, headers, or watermarks.''';
+const String documentOcrSystemPrompt =
+    '''You are a strict document OCR scanner. 
+- Analyze this image and extract ONLY the text that belongs to the document/book.
+- IGNORE completely any mobile UI elements, status bars, time (e.g., 4G, LTE, battery), notifications, or app names (like Facebook, Messenger, Instagram, PIXELLAB).
+- IF the image does not look like a document or book page, return exactly: 'No document text found. Please upload a clear image of a book or paper.'
+- DO NOT hallucinate. DO NOT translate. Output the exact Bengali or English text visible in the document.''';
+
+const String noDocumentTextResponse =
+    'No document text found. Please upload a clear image of a book or paper.';
 
 class GeminiOcrProvider implements AiOcrProvider {
   GeminiOcrProvider({String? apiKey, String? model, http.Client? client})
     : apiKey = apiKey ?? const String.fromEnvironment('GEMINI_API_KEY'),
-      model = model ??
+      model =
+          model ??
           const String.fromEnvironment(
             'GEMINI_MODEL',
             defaultValue: 'gemini-3.8-flash',
@@ -43,7 +46,7 @@ class GeminiOcrProvider implements AiOcrProvider {
     final body = jsonEncode({
       'system_instruction': {
         'parts': [
-          {'text': bengaliOcrSystemPrompt},
+          {'text': documentOcrSystemPrompt},
         ],
       },
       'contents': [
@@ -82,10 +85,9 @@ class GeminiOcrProvider implements AiOcrProvider {
 
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     final candidates = json['candidates'] as List<dynamic>?;
-    final parts =
-        (candidates?.isNotEmpty ?? false)
-            ? (candidates!.first['content']['parts'] as List<dynamic>?)
-            : null;
+    final parts = (candidates?.isNotEmpty ?? false)
+        ? (candidates!.first['content']['parts'] as List<dynamic>?)
+        : null;
     final text = parts
         ?.whereType<Map<String, dynamic>>()
         .map((part) => part['text']?.toString() ?? '')
@@ -93,6 +95,9 @@ class GeminiOcrProvider implements AiOcrProvider {
 
     if (text == null || text.trim().isEmpty) {
       throw AiProviderException(name, 'No text returned');
+    }
+    if (text.trim() == noDocumentTextResponse) {
+      throw const NoDocumentTextException();
     }
     return text;
   }

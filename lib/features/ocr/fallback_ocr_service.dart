@@ -23,6 +23,8 @@ class FallbackOcrService implements OcrService {
         if (!isUnreadableOcrText(text)) {
           return text;
         }
+      } on NoDocumentTextException {
+        rethrow;
       } catch (_) {
         continue;
       }
