@@ -2,6 +2,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../models/paper.dart';
 import '../../models/question.dart';
+import '../pdf_export/paper_details_screen.dart';
+import '../pdf_export/pdf_export_service.dart';
 
 class QuestionEditorScreen extends StatefulWidget {
   const QuestionEditorScreen({super.key, required this.paper});
@@ -13,13 +15,17 @@ class QuestionEditorScreen extends StatefulWidget {
 }
 
 class _QuestionEditorScreenState extends State<QuestionEditorScreen> {
+  late Paper _paper;
   late final List<Question> _questions;
   late final List<TextEditingController> _controllers;
+  final PdfExportService _pdfExportService = const PdfExportServiceImpl();
   int _idCounter = 0;
+  bool _isGeneratingPdf = false;
 
   @override
   void initState() {
     super.initState();
+    _paper = widget.paper;
     _questions = List.of(widget.paper.questions);
     if (_questions.isEmpty) {
       _questions.add(_newQuestion(''));
@@ -78,19 +84,69 @@ class _QuestionEditorScreenState extends State<QuestionEditorScreen> {
         ),
     ];
 
-    return Paper(
-      id: widget.paper.id,
-      title: widget.paper.title,
-      createdAt: widget.paper.createdAt,
-      questions: questions,
+    return _paper.copyWith(questions: questions);
+  }
+
+  Future<void> _openPaperDetails() async {
+    final updatedPaper = await Navigator.of(context).push<Paper>(
+      MaterialPageRoute<Paper>(
+        builder: (_) => PaperDetailsScreen(paper: _paper),
+      ),
     );
+
+    if (updatedPaper != null && mounted) {
+      setState(() {
+        _paper = updatedPaper;
+      });
+    }
+  }
+
+  Future<void> _generatePdf() async {
+    if (_isGeneratingPdf) {
+      return;
+    }
+
+    setState(() {
+      _isGeneratingPdf = true;
+    });
+
+    try {
+      await _pdfExportService.exportPaper(_buildPaper());
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not generate PDF: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGeneratingPdf = false;
+        });
+      }
+    }
+  }
+
+  String _paperDetailsSummary() {
+    final parts = <String>[
+      if (_paper.schoolName.isNotEmpty) _paper.schoolName,
+      if (_paper.examName.isNotEmpty) _paper.examName,
+      if (_paper.className.isNotEmpty || _paper.subject.isNotEmpty)
+        [_paper.className, _paper.subject]
+            .where((value) => value.isNotEmpty)
+            .join(' • '),
+      if (_paper.totalMarks > 0) 'Total Marks: ${_paper.totalMarks}',
+    ];
+
+    return parts.isEmpty ? 'Add school, exam, class, subject, and marks' : parts.join(' • ');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.paper.title),
+        title: Text(_paper.title),
         actions: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(_buildPaper()),
@@ -102,6 +158,17 @@ class _QuestionEditorScreenState extends State<QuestionEditorScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: ListTile(
+              leading: const Icon(Icons.assignment_outlined),
+              title: const Text('Paper details'),
+              subtitle: Text(_paperDetailsSummary()),
+              trailing: const Icon(Icons.edit_outlined),
+              onTap: _openPaperDetails,
+            ),
+          ),
+          const SizedBox(height: 16),
           Text(
             '${_questions.length} question${_questions.length == 1 ? '' : 's'}',
             style: Theme.of(context).textTheme.titleMedium,
@@ -119,6 +186,19 @@ class _QuestionEditorScreenState extends State<QuestionEditorScreen> {
             onPressed: _addQuestion,
             icon: const Icon(Icons.add),
             label: const Text('Add question'),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 56,
+            child: FilledButton.icon(
+              onPressed: _isGeneratingPdf ? null : _generatePdf,
+              icon: Icon(
+                _isGeneratingPdf
+                    ? Icons.hourglass_top
+                    : Icons.picture_as_pdf_outlined,
+              ),
+              label: Text(_isGeneratingPdf ? 'Generating…' : 'Generate PDF'),
+            ),
           ),
         ],
       ),

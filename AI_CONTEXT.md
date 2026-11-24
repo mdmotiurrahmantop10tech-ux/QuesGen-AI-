@@ -9,6 +9,8 @@ QuesGen is a Flutter app for creating question papers. The current workflow lets
 - `image_picker` for camera/gallery image selection
 - `google_mlkit_text_recognition` for offline OCR fallback
 - `http` for cloud OCR provider calls
+- `pdf` and `printing` for PDF generation and print/share preview
+- Noto Sans Bengali fonts embedded under `assets/fonts/` for Bengali PDF text
 - Cloud OCR provider: Gemini (`GEMINI_API_KEY`, optional `GEMINI_MODEL`); an OpenAI provider class exists but is not in the default chain
 - OCR fallback order: Gemini → ML Kit (offline)
 
@@ -17,6 +19,9 @@ QuesGen is a Flutter app for creating question papers. The current workflow lets
 - Bottom navigation implemented with New Paper and Saved Papers tabs.
 - New Paper screen has large **Scan from Image** and **Create Manually** buttons.
 - Question Editor screen supports viewing, adding, deleting, and editing question text.
+- `Paper` model includes school name, exam name, class, subject, and total marks.
+- Paper Details screen collects exam metadata inside the editor.
+- PDF export implemented with `pdf`/`printing` and embedded Noto Sans Bengali fonts; Generate PDF opens the print/share preview.
 - OCR pipeline implemented: image pick → Gemini cloud OCR → ML Kit offline fallback → regex question extraction → Question Editor.
 - Question extractor handles ASCII numbering, Bengali digits, and Bengali letter markers.
 - Android manifest includes camera and media permissions.
@@ -25,7 +30,7 @@ QuesGen is a Flutter app for creating question papers. The current workflow lets
 
 ## Next steps
 - Add persistent storage for saved papers and wire Saved Papers to real data.
-- Add PDF export using `features/pdf_export`.
+- Improve PDF layout: question options, marks per question, page numbers, and Bengali/English mixed typography.
 - Add richer question editing: options, correct answers, sections, marks, and reordering.
 - Add provider configuration UI or secure key storage instead of relying only on `--dart-define`.
 - Add OCR result confidence handling and better extraction heuristics for Bengali/English mixed papers.
