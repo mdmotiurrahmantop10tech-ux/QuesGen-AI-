@@ -119,6 +119,8 @@ To run the app locally with your own free API key:
 flutter run --dart-define=GEMINI_API_KEY=YOUR_KEY_HERE
 ```
 
+If you see `GEMINI_API_KEY সেট করা নেই`, rerun with the command above; the key is never stored in source control.
+
 To build locally with the same key:
 
 ```bash
